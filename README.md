@@ -10,21 +10,27 @@ Unreal Engine plugin to bridge [Nuitrack](https://nuitrack.com/). Nuitrack is a 
     * Free Trial version will work but timeout within 3 minutes.
 * Replace the TBB library in your Unreal Editor with the library from Nuitrack
     * follow [this](https://github.com/3DiVi/nuitrack-sdk/blob/master/doc/Troubleshooting.md#unreal-engine)
+* Locate ["NuitrackModule" directory from original SDK repo](https://github.com/3DiVi/nuitrack-sdk/tree/master/UnrealEngine/NuitrackPlugin/Source/NuitrackModule)  into this plugin's `/Source/` directory.
 * Unreal Engine 4.27~
     * Only tested with 4.27. May work with lower.
-* Locate ["NuitrackModule" directory](https://github.com/3DiVi/nuitrack-sdk/tree/master/UnrealEngine/NuitrackPlugin/Source/NuitrackModule) from SDK repo into this plugin's `/Source/` 
-
 ## Features
+
+Almost all implementations are provided via `NuitrackIO` UObject.
 
 ### In-Editor activation
 
-* Color buffer into `RenderTarget2D`s. 
+* Color buffer can be written into `RenderTarget2D`.
+* `NuitrackVisualizer` Actor also works in editor time.
 
 ![](./Docs/editor-activation.gif)
 
 ### Blueprint activation
 
 ![](./Docs/bp-activation.png)
+
+* Data accessor such as 
+    * Skeleton tracking results
+    * Hand tracking results
 
 ## TODO
 * Avatar controll (Skeletal mesh controll via AnimGraph)
