@@ -2,7 +2,7 @@
 
 ![](./Docs/trail-example.gif)
 
-Unreal Engine plugin to bridge [Nuitrack](https://nuitrack.com/). Nuitrack is a middleware to provide 3d skeleton tracking solution using a depth sensor. It has many PROs: AI-based, relatively fast and stable, coverage of depth sensor brands. Nuitrack has [an official plugin](https://github.com/3DiVi/nuitrack-sdk/tree/master/UnrealEngine) which still only provides native C++ interface. This plugin aims to encapsulate Nuitrack's C++ functions and align with Unreal Engine manner. 
+Unreal Engine plugin to bridge [Nuitrack](https://nuitrack.com/). Nuitrack is a middleware to provide 3d skeleton tracking solution using a depth sensor. It has many PROs: AI-based, relatively fast and stable, coverage of depth sensor brands. Nuitrack has [an official plugin](https://github.com/3DiVi/nuitrack-sdk/tree/master/UnrealEngine) for Unreal Engine which still only provides native C++ interface. This plugin aims to encapsulate Nuitrack's C++ functions and align with Unreal Engine manner. 
 
 ## Prerequisites
 
@@ -34,3 +34,4 @@ Almost all implementations are provided via `NuitrackIO` UObject.
 
 ## TODO
 * Avatar controll (Skeletal mesh controll via AnimGraph)
+* Gesture recognition interface
