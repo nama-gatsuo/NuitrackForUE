@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Nuitrack",
+	"Description": "Nuitrack Plugin for Unreal Engine",
+	"Category": "Virtual Production",
+	"CreatedBy": "3DiVi Inc",
+	"CreatedByURL": "https://3divi.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "https://3divi.com",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "NuitrackPlugin",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NuitrackEditor",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	]
+}
