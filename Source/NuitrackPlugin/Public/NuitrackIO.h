@@ -95,27 +95,31 @@ public:
 	UNuitrackIO(const FObjectInitializer& ObjectInitializer);
 	virtual ~UNuitrackIO();
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Config", meta = (UIMin="0", UIMax="6"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config", meta = (UIMin="0", UIMax="6"))
 	int32 NumBodiesToTrack;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Config")
+	UPROPERTY(BlueprintReadWrite, Category = "Nuitrack | Config")
 	int32 DeviceIndex;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
 	FString ActivationKey;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
 	bool bUseSkeletonTracking;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
 	bool bUseHandTracking;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "IO")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | IO")
 	UTextureRenderTarget2D* ColorTexture;
 
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | IO")
 	void LoadDevices();
 
+	/*
+	 * Before starting Nuitrack process, you should set ActivationKey in advance
+	 * so that Nuitrack can varify.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | IO")
 	bool Start();
 
@@ -137,6 +141,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | Hands")
 	const TArray<FNuitrackHandPair>& GetHandPairs() const;
 
+	/*
+	 * Nuitrack Bone represents pair of joints. So you can trace joints' hierarchy.
+	*/ 
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | Skeleton")
 	static const TArray<FNuitrackBone>& GetNuitrackBones() { return Bones; }
 
