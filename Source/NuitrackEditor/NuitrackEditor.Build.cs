@@ -23,6 +23,7 @@ public class NuitrackEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Projects",
 				"Core",
 				"CoreUObject",
 				"Engine",
