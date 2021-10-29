@@ -19,7 +19,7 @@ USTRUCT(BlueprintType)
 struct FNuitrackHand
 {
 	GENERATED_BODY()
-
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool IsClick;
 	
@@ -34,7 +34,7 @@ USTRUCT(BlueprintType)
 struct FNuitrackHandPair
 {
 	GENERATED_BODY()
-
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FNuitrackHand Left;
 
@@ -47,7 +47,7 @@ USTRUCT(BlueprintType)
 struct FNuitrackBone
 {
 	GENERATED_BODY()
-
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	ENuitrackJoint ParentID;
 
@@ -60,7 +60,7 @@ USTRUCT(BlueprintType)
 struct FNuitrackSkeleton
 {
 	GENERATED_BODY()
-
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	int32 ID;
 
@@ -79,17 +79,6 @@ class NUITRACKPLUGIN_API UNuitrackIO : public UObject
 {
 	GENERATED_BODY()
 public:
-
-	using NuiSkeletonTracker = tdv::nuitrack::SkeletonTracker;
-	using NuiSkeletonData = tdv::nuitrack::SkeletonData;
-	using NuiHandTracker = tdv::nuitrack::HandTracker;
-	using NuiHandData = tdv::nuitrack::HandTrackerData;
-	using NuiJoint = tdv::nuitrack::Joint;
-	using Nuitrack = tdv::nuitrack::Nuitrack;
-	using NuiException = tdv::nuitrack::Exception;
-	using NuiDevice = tdv::nuitrack::device::NuitrackDevice;
-	using NuiColorSensor = tdv::nuitrack::ColorSensor;
-	using NuiColorFrame = tdv::nuitrack::RGBFrame;
 
 	UNuitrackIO();
 	UNuitrackIO(const FObjectInitializer& ObjectInitializer);
@@ -110,8 +99,20 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
 	bool bUseHandTracking;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
+	bool bUseGestureRecognizer;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | IO")
 	UTextureRenderTarget2D* ColorTexture;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | IO")
+	UTextureRenderTarget2D* DepthTexture;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | IO")
+	UTextureRenderTarget2D* UserTexture;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | IO")
+	TArray<FColor> ColorsForUserTexture;
 
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | IO")
 	void LoadDevices();
@@ -151,22 +152,29 @@ public:
 	void UpdateAsync();
 	
 	// Nuitrack callbacks
-	void OnSkeletonUpdate(NuiSkeletonData::Ptr SkeletonsPtr);
-	void OnHandUpdate(NuiHandData::Ptr SkeletonsPtr);
-	void OnColorUpdate(NuiColorFrame::Ptr ColorPtr);
+	void OnSkeletonUpdate(tdv::nuitrack::SkeletonData::Ptr SkeletonsPtr);
+	void OnHandUpdate(tdv::nuitrack::HandTrackerData::Ptr HandDataPtr);
+	void OnColorUpdate(tdv::nuitrack::RGBFrame::Ptr ColorPtr);
+	void OnDepthUpdate(tdv::nuitrack::DepthFrame::Ptr DepthPtr);
+	void OnUserUpdate(tdv::nuitrack::UserFrame::Ptr UserPtr);
+	void OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr GesturePtr);
 
 	// Interface for Editor Module
 	TArray<TSharedPtr<FString>> DeviceList;
 
 private:
-	static FTransform JointToTransform(const NuiJoint& Joint);
+	static FTransform JointToTransform(const tdv::nuitrack::Joint& Joint);
+	
+	void AllocateUserColor();
 
-	NuiSkeletonTracker::Ptr SkeletonTracker;
-	uint64_t SkeletonUpdateHandler;
-	NuiHandTracker::Ptr HandTracker;
-	uint64_t HandUpdateHandler;
-	NuiColorSensor::Ptr ColorSensor;
-	uint64_t ColorUpdateHandler;
+	enum class ModuleType : uint8
+	{
+		DEPTH_SENSOR = 0, COLOR_SENSOR, USER_TRACKER,
+		SKELETON_TRACKER, HAND_TRACKER, GESTURE_RECOGNIZER
+	};
+
+	std::map<ModuleType, std::shared_ptr<tdv::nuitrack::HeaderOnlyAPI_Module>> Modules;
+	std::map<ModuleType, uint64_t> ModuleCallbackHandlers;
 
 	FNuitrackThread* Thread;
 	bool bOpen;
@@ -177,7 +185,7 @@ private:
 	int32 NumPairOfHands;
 	TArray<FNuitrackHandPair> NuiHandPairs;
 
-	TArray<NuiDevice::Ptr> NuiDevices;
+	TArray<tdv::nuitrack::device::NuitrackDevice::Ptr> NuiDevices;
 
 	const static TArray<FNuitrackBone> Bones;
 

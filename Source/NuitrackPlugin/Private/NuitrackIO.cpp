@@ -6,6 +6,8 @@
 
 DEFINE_LOG_CATEGORY(NuitrackIOLog);
 
+using namespace tdv::nuitrack;
+
 const TArray<FNuitrackBone> UNuitrackIO::Bones({
 //	{ ENuitrackJoint::JOINT_NONE,			ENuitrackJoint::JOINT_WAIST },
 	{ ENuitrackJoint::JOINT_WAIST,			ENuitrackJoint::JOINT_TORSO },
@@ -37,6 +39,7 @@ UNuitrackIO::UNuitrackIO() :
 {
 	Nuitrack::init();
 	LoadDevices();
+	AllocateUserColor();
 }
 
 UNuitrackIO::UNuitrackIO(const FObjectInitializer& ObjectInitializer) :
@@ -46,6 +49,7 @@ UNuitrackIO::UNuitrackIO(const FObjectInitializer& ObjectInitializer) :
 {
 	Nuitrack::init();
 	LoadDevices();
+	AllocateUserColor();
 }
 
 UNuitrackIO::~UNuitrackIO()
@@ -93,39 +97,87 @@ bool UNuitrackIO::Start()
 
 	try
 	{
+
 		NuiDevices[DeviceIndex]->activate(std::string(TCHAR_TO_UTF8(*ActivationKey)));
 		Nuitrack::setDevice(NuiDevices[DeviceIndex]);
 
+		if (ColorTexture)
+		{
+			auto Sensor = ColorSensor::create();
+			uint64_t Handler = Sensor->connectOnNewFrame(
+				std::bind(&UNuitrackIO::OnColorUpdate, this, std::placeholders::_1)
+			);
+
+			Modules[ModuleType::COLOR_SENSOR] = Sensor;
+			ModuleCallbackHandlers[ModuleType::COLOR_SENSOR] = Handler;
+		}
+
+		if (DepthTexture)
+		{
+			auto Sensor = DepthSensor::create();
+			uint64_t Handler = Sensor->connectOnNewFrame(
+				std::bind(&UNuitrackIO::OnDepthUpdate, this, std::placeholders::_1)
+			);
+
+			Modules[ModuleType::DEPTH_SENSOR] = Sensor;
+			ModuleCallbackHandlers[ModuleType::DEPTH_SENSOR] = Handler;
+		}
+
+		if (UserTexture)
+		{
+			auto Tracker = UserTracker::create();
+			uint64_t Handler = Tracker->connectOnUpdate(
+				std::bind(&UNuitrackIO::OnUserUpdate, this, std::placeholders::_1)
+			);
+
+			Modules[ModuleType::USER_TRACKER] = Tracker;
+			ModuleCallbackHandlers[ModuleType::USER_TRACKER] = Handler;
+		}
+
 		if (bUseSkeletonTracking)
 		{
-			SkeletonTracker = NuiSkeletonTracker::create();
-			SkeletonTracker->setNumActiveUsers(NumBodiesToTrack);
-			SkeletonUpdateHandler = SkeletonTracker->connectOnUpdate(
+			auto Tracker = SkeletonTracker::create();
+			Tracker->setNumActiveUsers(NumBodiesToTrack);
+
+			uint64_t Handler = Tracker->connectOnUpdate(
 				std::bind(&UNuitrackIO::OnSkeletonUpdate, this, std::placeholders::_1)
 			);
+
+			Modules[ModuleType::SKELETON_TRACKER] = Tracker;
+			ModuleCallbackHandlers[ModuleType::SKELETON_TRACKER] = Handler;
 		}
 
 		if (bUseHandTracking)
 		{
-			HandTracker = NuiHandTracker::create();
-			HandUpdateHandler = HandTracker->connectOnUpdate(
+			auto Tracker = HandTracker::create();
+			Modules[ModuleType::HAND_TRACKER] = Tracker;
+
+			uint64_t Handler = Tracker->connectOnUpdate(
 				std::bind(&UNuitrackIO::OnHandUpdate, this, std::placeholders::_1)
 			);
+
+			Modules[ModuleType::HAND_TRACKER] = Tracker;
+			ModuleCallbackHandlers[ModuleType::HAND_TRACKER] = Handler;
 		}
 
-		if (ColorTexture)
+		if (bUseGestureRecognizer)
 		{
-			ColorSensor = NuiColorSensor::create();
-			ColorUpdateHandler = ColorSensor->connectOnNewFrame(
-				std::bind(&UNuitrackIO::OnColorUpdate, this, std::placeholders::_1)
+			auto Tracker = GestureRecognizer::create();
+			Modules[ModuleType::GESTURE_RECOGNIZER] = Tracker;
+
+			uint64_t Handler = Tracker->connectOnUpdate(
+				std::bind(&UNuitrackIO::OnGestureUpdate, this, std::placeholders::_1)
 			);
+
+			Modules[ModuleType::GESTURE_RECOGNIZER] = Tracker;
+			ModuleCallbackHandlers[ModuleType::GESTURE_RECOGNIZER] = Handler;
 		}
 
 		Nuitrack::run();
 	}
-	catch (const NuiException& Exception)
+	catch (const Exception& exception)
 	{
-		FString Msg(ANSI_TO_TCHAR(Exception.what()));
+		FString Msg(ANSI_TO_TCHAR(exception.what()));
 		UE_LOG(NuitrackIOLog, Error, TEXT("Can not initialize Nuitrack (%s)"), *Msg);
 		return false;
 	}
@@ -149,26 +201,56 @@ bool UNuitrackIO::Stop()
 
 	try
 	{
-		if (SkeletonTracker)
+		if (Modules.at(ModuleType::SKELETON_TRACKER))
 		{
-			SkeletonTracker->disconnectOnUpdate(SkeletonUpdateHandler);
+			std::static_pointer_cast<SkeletonTracker>(Modules[ModuleType::SKELETON_TRACKER])->disconnectOnUpdate(
+				ModuleCallbackHandlers[ModuleType::SKELETON_TRACKER]
+			);
 		}
 		
-		if (HandTracker)
+		if (Modules.at(ModuleType::HAND_TRACKER))
 		{
-			HandTracker->disconnectOnUpdate(HandUpdateHandler);
+			std::static_pointer_cast<HandTracker>(Modules[ModuleType::HAND_TRACKER])->disconnectOnUpdate(
+				ModuleCallbackHandlers[ModuleType::HAND_TRACKER]
+			);
+		}
+
+		if (Modules.at(ModuleType::GESTURE_RECOGNIZER))
+		{
+			std::static_pointer_cast<GestureRecognizer>(Modules[ModuleType::GESTURE_RECOGNIZER])->disconnectOnUpdate(
+				ModuleCallbackHandlers[ModuleType::GESTURE_RECOGNIZER]
+			);
 		}
 		
-		if (ColorSensor)
+		if (Modules.at(ModuleType::COLOR_SENSOR))
 		{
-			ColorSensor->disconnectOnNewFrame(ColorUpdateHandler);
+			std::static_pointer_cast<ColorSensor>(Modules[ModuleType::COLOR_SENSOR])->disconnectOnNewFrame(
+				ModuleCallbackHandlers[ModuleType::COLOR_SENSOR]
+			);
+		}
+
+		if (Modules.at(ModuleType::DEPTH_SENSOR))
+		{
+			std::static_pointer_cast<DepthSensor>(Modules[ModuleType::DEPTH_SENSOR])->disconnectOnNewFrame(
+				ModuleCallbackHandlers[ModuleType::DEPTH_SENSOR]
+			);
+		}
+
+		if (Modules.at(ModuleType::USER_TRACKER))
+		{
+			std::static_pointer_cast<UserTracker>(Modules[ModuleType::USER_TRACKER])->disconnectOnUpdate(
+				ModuleCallbackHandlers[ModuleType::USER_TRACKER]
+			);
 		}
 		
+		Modules.clear();
+		ModuleCallbackHandlers.clear();
+
 		Nuitrack::release();
 	}
-	catch (const NuiException& Exception)
+	catch (const Exception& exception)
 	{
-		FString Msg(ANSI_TO_TCHAR(Exception.what()));
+		FString Msg(ANSI_TO_TCHAR(exception.what()));
 		UE_LOG(NuitrackIOLog, Error, TEXT("Can not release Nuitrack (%s)"), *Msg);
 		return false;
 	}
@@ -242,17 +324,9 @@ void UNuitrackIO::UpdateAsync()
 {
 	try
 	{
-		if (bUseSkeletonTracking && SkeletonTracker)
+		for (auto& Module : Modules)
 		{
-			Nuitrack::waitUpdate(SkeletonTracker);
-		}
-		if (bUseHandTracking && HandTracker)
-		{
-			Nuitrack::waitUpdate(HandTracker);
-		}
-		if (ColorTexture && ColorSensor)
-		{
-			Nuitrack::waitUpdate(ColorSensor);
+			Nuitrack::waitUpdate(Module.second);
 		}
 	}
 	catch (tdv::nuitrack::LicenseNotAcquiredException& Exception)
@@ -262,15 +336,15 @@ void UNuitrackIO::UpdateAsync()
 		Stop();
 		return;
 	}
-	catch (const NuiException& Exception)
+	catch (const Exception& exception)
 	{
-		FString Msg(ANSI_TO_TCHAR(Exception.what()));
+		FString Msg(ANSI_TO_TCHAR(exception.what()));
 		UE_LOG(NuitrackIOLog, Error, TEXT("Nuitrack update failed (%s)"), *Msg);
 		return;
 	}
 }
 
-void UNuitrackIO::OnSkeletonUpdate(NuiSkeletonData::Ptr SkeletonsPtr)
+void UNuitrackIO::OnSkeletonUpdate(SkeletonData::Ptr SkeletonsPtr)
 {
 	if (SkeletonsPtr)
 	{
@@ -301,7 +375,7 @@ void UNuitrackIO::OnSkeletonUpdate(NuiSkeletonData::Ptr SkeletonsPtr)
 	}
 }
 
-void UNuitrackIO::OnHandUpdate(NuiHandData::Ptr HandPtr)
+void UNuitrackIO::OnHandUpdate(HandTrackerData::Ptr HandPtr)
 {
 	if (HandPtr)
 	{
@@ -329,7 +403,7 @@ void UNuitrackIO::OnHandUpdate(NuiHandData::Ptr HandPtr)
 
 }
 
-void UNuitrackIO::OnColorUpdate(NuiColorFrame::Ptr ColorPtr)
+void UNuitrackIO::OnColorUpdate(RGBFrame::Ptr ColorPtr)
 {
 	if (ColorPtr)
 	{
@@ -371,7 +445,121 @@ void UNuitrackIO::OnColorUpdate(NuiColorFrame::Ptr ColorPtr)
 	}
 }
 
-FTransform UNuitrackIO::JointToTransform(const NuiJoint& Joint)
+void UNuitrackIO::OnDepthUpdate(tdv::nuitrack::DepthFrame::Ptr DepthPtr)
+{
+	if (DepthPtr)
+	{
+		int Width = DepthPtr->getCols(), Height = DepthPtr->getRows();
+		if (Width == 0 || Height == 0) return;
+		if (DepthTexture->GetSurfaceWidth() != Width || DepthTexture->GetSurfaceHeight() != Height)
+		{
+			DepthTexture->InitCustomFormat(Width, Height, EPixelFormat::PF_R8G8B8A8, false);
+			DepthTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
+			DepthTexture->UpdateResource();
+		}
+		else
+		{
+			auto DepthSamples = DepthPtr->getData();
+			TArray<uint8> SourceBuffer;
+			SourceBuffer.Reserve(Width * Height * 4);
+			for (int i = 0; i < Width * Height; i++)
+			{
+
+				SourceBuffer.Push(DepthSamples[i] & 0xFF);
+				SourceBuffer.Push((DepthSamples[i] >> 8) & 0xFF);
+				SourceBuffer.Push(DepthSamples == 0 ? 0xFF : 0x00);
+				SourceBuffer.Push(0xff);
+			}
+
+			FTextureResource* TextureResource = DepthTexture->Resource;
+			auto Region = FUpdateTextureRegion2D(0, 0, 0, 0, Width, Height);
+
+			ENQUEUE_RENDER_COMMAND(UpdateTextureData)(
+				[TextureResource, Region, SourceBuffer](FRHICommandListImmediate& RHICmdList) {
+					FTexture2DRHIRef Texture2D = TextureResource->TextureRHI ? TextureResource->TextureRHI->GetTexture2D() : nullptr;
+					if (!Texture2D)
+					{
+						return;
+					}
+					RHIUpdateTexture2D(Texture2D, 0, Region, 4 * Region.Width, SourceBuffer.GetData());
+				});
+		}
+
+	}
+}
+
+void UNuitrackIO::OnUserUpdate(tdv::nuitrack::UserFrame::Ptr UserFramePtr)
+{
+	if (UserFramePtr)
+	{
+		int Width = UserFramePtr->getCols(), Height = UserFramePtr->getRows();
+		if (Width == 0 || Height == 0) return;
+		if (UserTexture->GetSurfaceWidth() != Width || UserTexture->GetSurfaceHeight() != Height)
+		{
+			UserTexture->InitCustomFormat(Width, Height, EPixelFormat::PF_R8G8B8A8, false);
+			UserTexture->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
+			UserTexture->UpdateResource();
+		}
+		else
+		{
+			auto UserSamples = UserFramePtr->getData();
+			TArray<uint8> SourceBuffer;
+			SourceBuffer.Reserve(Width * Height * 4);
+			for (int i = 0; i < Width * Height; i++)
+			{
+				int Index = UserSamples[i] % ColorsForUserTexture.Num();
+				if (Index == 0)
+				{
+					for (int j = 0; j < 4; j++)
+					{
+						SourceBuffer.Push(0x00);
+					}
+				}
+				else
+				{
+					const FColor& Col = ColorsForUserTexture[Index - 1];
+					SourceBuffer.Push(Col.R);
+					SourceBuffer.Push(Col.G);
+					SourceBuffer.Push(Col.B);
+					SourceBuffer.Push(0xFF);
+				}
+			}
+
+			FTextureResource* TextureResource = UserTexture->Resource;
+			auto Region = FUpdateTextureRegion2D(0, 0, 0, 0, Width, Height);
+
+			ENQUEUE_RENDER_COMMAND(UpdateTextureData)(
+				[TextureResource, Region, SourceBuffer](FRHICommandListImmediate& RHICmdList) {
+					FTexture2DRHIRef Texture2D = TextureResource->TextureRHI ? TextureResource->TextureRHI->GetTexture2D() : nullptr;
+					if (!Texture2D)
+					{
+						return;
+					}
+					RHIUpdateTexture2D(Texture2D, 0, Region, 4 * Region.Width, SourceBuffer.GetData());
+				});
+		}
+
+	}
+}
+
+void UNuitrackIO::OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr GesturePtr)
+{
+	if (!GesturePtr) return;
+
+	for (auto& State : GesturePtr->getUserGesturesStates())
+	{
+		State.userId;
+		State.state;
+		for (auto& Gesture : State.gestures)
+		{
+			Gesture.type;
+			Gesture.progress;
+		}
+	}
+
+}
+
+FTransform UNuitrackIO::JointToTransform(const Joint& Joint)
 {
 
 	int JointType = Joint.type;
@@ -382,29 +570,19 @@ FTransform UNuitrackIO::JointToTransform(const NuiJoint& Joint)
 	FVector Y(Joint.orient.matrix[1], Joint.orient.matrix[4], Joint.orient.matrix[7]);
 	FVector Z(Joint.orient.matrix[2], Joint.orient.matrix[5], Joint.orient.matrix[8]);
 	
-	FQuat RawRotation(FMatrix(FPlane(X, 0), FPlane(Y, 0), FPlane(Z, 0), FPlane(0,0,0, 1)));
-
-	FQuat Rotation;
-
-	/*
-	bool IsLeftHand = JointType >= 6 && JointType <= 10;
-	bool IsRightLeg = JointType >= 21 && JointType <= 24;
-
-	if (IsRightLeg)
-	{
-		Rotation = FRotator(0, 180, 0).Quaternion() * FQuat(RawRotation.Y, -RawRotation.Z, RawRotation.X, RawRotation.W);
-	}
-	else if (IsLeftHand)
-	{
-		Rotation = FQuat(RawRotation.X, RawRotation.Y, RawRotation.Z, RawRotation.W);
-	}
-	else
-	{
-		Rotation = FQuat(RawRotation.Y, RawRotation.Z, RawRotation.X, RawRotation.W);
-	}
-	*/
-
-	Rotation = FQuat(RawRotation.Y, RawRotation.Z, RawRotation.X, RawRotation.W);
+	FQuat RawRotation(FMatrix(FPlane(X, 0), FPlane(Y, 0), FPlane(Z, 0), FPlane(0,0,0, 1))); // Matrix to Quaternion
+	FQuat Rotation = FQuat(RawRotation.Y, RawRotation.Z, RawRotation.X, RawRotation.W);
 
 	return FTransform(Rotation, Location);
+}
+
+void UNuitrackIO::AllocateUserColor()
+{
+	ColorsForUserTexture.Reset(6);
+	ColorsForUserTexture.Push(FColor(255, 0, 0, 255));
+	ColorsForUserTexture.Push(FColor(0, 255, 0, 255));
+	ColorsForUserTexture.Push(FColor(0, 0, 255, 255));
+	ColorsForUserTexture.Push(FColor(255, 255, 0, 255));
+	ColorsForUserTexture.Push(FColor(255, 0, 255, 255));
+	ColorsForUserTexture.Push(FColor(0, 255, 255, 255));
 }
