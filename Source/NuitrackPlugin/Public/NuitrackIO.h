@@ -72,7 +72,7 @@ public:
 };
 
 UENUM(BlueprintType)
-enum class EUserStateType : uint8
+enum class ENuitrackUserStateType : uint8
 {
 	USER_IS_ABSENT = 0,
 	USER_IN_SCENE,
@@ -80,7 +80,7 @@ enum class EUserStateType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EGestureType : uint8
+enum class ENuitrackGestureType : uint8
 {
 	WAVING = 0,
 	SWIPE_LEFT,
@@ -100,10 +100,10 @@ public:
 	int32 UserID;
 	
 	UPROPERTY(BlueprintReadOnly)
-	EUserStateType State;
+	ENuitrackUserStateType State;
 
 	UPROPERTY(BlueprintReadOnly)
-	TMap<EGestureType, float> GestureProgress;
+	TMap<ENuitrackGestureType, float> GestureProgress;
 };
 
 
@@ -116,7 +116,7 @@ class NUITRACKPLUGIN_API UNuitrackIO : public UObject
 	GENERATED_BODY()
 public:
 
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUserGesture, int32, UserID, EGestureType, GestureType);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUserGesture, int32, UserID, ENuitrackGestureType, GestureType);
 
 	UNuitrackIO();
 	UNuitrackIO(const FObjectInitializer& ObjectInitializer);
@@ -192,7 +192,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Nuitrack | Gesture")
 	FOnUserGesture OnUserGesture;
 
-
 	// Interface for thread
 	void UpdateAsync();
 	
@@ -207,6 +206,9 @@ public:
 
 	// Interface for Editor Module
 	TArray<TSharedPtr<FString>> DeviceList;
+
+	UFUNCTION(BlueprintCallable, Category = "Nuitrack | Skeleton")
+	static FNuitrackSkeleton BlendSkeleton(const FNuitrackSkeleton& A, const FNuitrackSkeleton& B, float alpha, bool bIgnoreConfidence=true);
 
 private:
 	static FTransform JointToTransform(const tdv::nuitrack::Joint& Joint);

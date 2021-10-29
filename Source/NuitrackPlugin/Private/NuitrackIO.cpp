@@ -480,8 +480,8 @@ void UNuitrackIO::OnDepthUpdate(tdv::nuitrack::DepthFrame::Ptr DepthPtr)
 			{
 
 				SourceBuffer.Push(DepthSamples[i] & 0xFF);
-				SourceBuffer.Push((DepthSamples[i] >> 8) & 0xFF);
-				SourceBuffer.Push(DepthSamples == 0 ? 0xFF : 0x00);
+				SourceBuffer.Push(uint8(DepthSamples[i] >> 8) & 0xFF);
+				SourceBuffer.Push(DepthSamples[i] == 0 ? 0xFF : 0x00);
 				SourceBuffer.Push(0xff);
 			}
 
@@ -567,12 +567,12 @@ void UNuitrackIO::OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr Gest
 	for (auto& State : GesturePtr->getUserGesturesStates())
 	{
 		FNuitrackUserGesture UserGesture;
-		UserGesture.State = static_cast<EUserStateType>(State.state);
+		UserGesture.State = static_cast<ENuitrackUserStateType>(State.state);
 		UserGesture.UserID = State.userId;
 		for (auto& Gesture : State.gestures)
 		{
 			UserGesture.GestureProgress.Emplace(
-				static_cast<EGestureType>(Gesture.type), Gesture.progress
+				static_cast<ENuitrackGestureType>(Gesture.type), Gesture.progress
 			);
 		}
 
@@ -587,23 +587,82 @@ void UNuitrackIO::OnNewGesture(tdv::nuitrack::GestureData::Ptr GesturePtr)
 
 	for (auto& Gesture : GesturePtr->getGestures())
 	{
-		OnUserGesture.Broadcast(Gesture.userId, static_cast<EGestureType>(Gesture.type));
+		OnUserGesture.Broadcast(Gesture.userId, static_cast<ENuitrackGestureType>(Gesture.type));
+	}
+}
+
+FNuitrackSkeleton UNuitrackIO::BlendSkeleton(const FNuitrackSkeleton& A, const FNuitrackSkeleton& B, float alpha, bool bIgnoreConfidence)
+{
+	FNuitrackSkeleton Skeleton;
+
+	if (A.Joints.Num() == B.Joints.Num())
+	{
+		Skeleton.Joints.Reset(A.Joints.Num());
+		for (int i = 0; i < A.Joints.Num(); i++)
+		{
+			Skeleton.Joints.Push(
+				FTransform(
+					FQuat::Slerp(A.Joints[i].GetRotation(), B.Joints[i].GetRotation(), alpha),
+					FMath::Lerp(A.Joints[i].GetLocation(), B.Joints[i].GetLocation(), alpha)
+				));
+
+			if (!bIgnoreConfidence)
+			{
+				Skeleton.Confidences.Push(FMath::Lerp(A.Confidences[i], B.Confidences[i], alpha));
+			}
+		}
+		return Skeleton;
+	}
+	else
+	{
+		return A;
 	}
 }
 
 FTransform UNuitrackIO::JointToTransform(const Joint& Joint)
 {
 
-	int JointType = Joint.type;
+	
 	FVector Location(Joint.real.z, Joint.real.x, Joint.real.y);
 	Location *= 0.1f;
-	Joint.orient;
+	
 	FVector X(Joint.orient.matrix[0], Joint.orient.matrix[3], Joint.orient.matrix[6]);
 	FVector Y(Joint.orient.matrix[1], Joint.orient.matrix[4], Joint.orient.matrix[7]);
 	FVector Z(Joint.orient.matrix[2], Joint.orient.matrix[5], Joint.orient.matrix[8]);
 	
 	FQuat RawRotation(FMatrix(FPlane(X, 0), FPlane(Y, 0), FPlane(Z, 0), FPlane(0,0,0, 1))); // Matrix to Quaternion
-	FQuat Rotation = FQuat(RawRotation.Y, RawRotation.Z, RawRotation.X, RawRotation.W);
+	FQuat Rotation;
+	
+	if (
+		Joint.type == JOINT_LEFT_SHOULDER ||
+		Joint.type == JOINT_LEFT_ELBOW ||
+		Joint.type == JOINT_LEFT_WRIST
+		)
+	{
+		Rotation = FQuat(RawRotation.X, -RawRotation.Z, RawRotation.Y, RawRotation.W);
+	}
+	else if (
+		Joint.type == JOINT_RIGHT_SHOULDER ||
+		Joint.type == JOINT_RIGHT_ELBOW ||
+		Joint.type == JOINT_RIGHT_WRIST
+	)
+	{
+		Rotation = FQuat(RawRotation.X, RawRotation.Z, -RawRotation.Y, RawRotation.W);
+	}
+	else if (
+		Joint.type == JOINT_RIGHT_HIP ||
+		Joint.type == JOINT_RIGHT_KNEE ||
+		Joint.type == JOINT_RIGHT_ANKLE ||
+		Joint.type == JOINT_RIGHT_FOOT
+		)
+	{
+		Rotation = FQuat(RawRotation.Y, RawRotation.Z, -RawRotation.X, RawRotation.W);
+	}
+	else
+	{
+		Rotation = FQuat(RawRotation.Y, -RawRotation.Z, -RawRotation.X, RawRotation.W);
+	}
+	
 
 	return FTransform(Rotation, Location);
 }

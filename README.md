@@ -17,21 +17,40 @@ Unreal Engine plugin to bridge [Nuitrack](https://nuitrack.com/). Nuitrack is a 
 
 Almost all implementations are provided via `NuitrackIO` UObject.
 
-### In-Editor activation
+### Data acquisition
 
-* Color buffer can be written into `RenderTarget2D`.
-* `NuitrackVisualizer` Actor also works in editor time.
-
-![](./Docs/editor-activation.gif)
-
-### Blueprint activation
+* Color / Depth / User buffer can be written into `RenderTarget2D`.
+    * Depthe data are stored RenderTarget2D into standard 8bit RGBA texture.  
+    R: first 8bit as uint8 of original uint16 sample  
+    G: last 8bit as uint8 of original uint16 sample  
+    B: 0x00 or 0xFF (if depth sample is invalid)  
+    A: 0xFF (Constant value)
+* Skeleton tracking, Hand tracking, Gesture recognizer are accessible through Blueprint.
 
 ![](./Docs/bp-activation.png)
 
-* Data accessor such as 
-    * Skeleton tracking results
-    * Hand tracking results
+![](./Docs/bp-sample.png)
 
-## TODO
-* Avatar controll (Skeletal mesh controll via AnimGraph)
-* Gesture recognition interface
+### In-Editor activation
+
+* `NuitrackIO` and `NuitrackVisualizer` Actor will work in editor time
+
+![](./Docs/editor-activation.gif)
+
+### Avatar
+
+* Skeletal mesh will work via Anim blueprint
+* See `ABP_NuitrackToHumanoid` which is compatible with Manequine in ThirdPerson sample.
+
+![](./Docs/avatar.gif)
+
+# License
+## MIT License
+Copyright 2021 Ayumu Nagamtsu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
