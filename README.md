@@ -42,7 +42,7 @@ Almost all implementations are provided via `NuitrackIO` UObject.
 * Skeletal mesh will work via Anim blueprint
 * See `ABP_NuitrackToHumanoid` which is compatible with Manequine in ThirdPerson sample.
 
-![](./Docs/avatar.gif)
+![](./Docs/Avatar.gif)
 
 # License
 ## MIT License
