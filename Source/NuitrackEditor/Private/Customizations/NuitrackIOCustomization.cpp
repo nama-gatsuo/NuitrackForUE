@@ -62,14 +62,16 @@ void FNuitrackIOCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	];
 
 	auto ActivationKey = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNuitrackIO, ActivationKey));
+	auto NumBodiesToTrack = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNuitrackIO, NumBodiesToTrack));
 	auto UseSkeletonTracking = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNuitrackIO, bUseSkeletonTracking));
 	auto UseHandTracking = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNuitrackIO, bUseHandTracking));
-	auto NumBodiesToTrack = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNuitrackIO, NumBodiesToTrack));
+	auto UseGestureTracking = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNuitrackIO, bUseGestureRecognizer));
 
 	ConfigCategory.AddProperty(ActivationKey).IsEnabled(CheckDeviceOpen);
+	ConfigCategory.AddProperty(NumBodiesToTrack).IsEnabled(CheckDeviceOpen);
 	ConfigCategory.AddProperty(UseSkeletonTracking).IsEnabled(CheckDeviceOpen);
 	ConfigCategory.AddProperty(UseHandTracking).IsEnabled(CheckDeviceOpen);
-	ConfigCategory.AddProperty(NumBodiesToTrack).IsEnabled(CheckDeviceOpen);
+	ConfigCategory.AddProperty(UseGestureTracking).IsEnabled(CheckDeviceOpen);
 	
 	// Customize 'IO' category
 	IDetailCategoryBuilder& IOCategory = DetailBuilder.EditCategory("IO");

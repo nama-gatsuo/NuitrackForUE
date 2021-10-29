@@ -71,6 +71,42 @@ public:
 	TArray<float> Confidences;
 };
 
+UENUM(BlueprintType)
+enum class EUserStateType : uint8
+{
+	USER_IS_ABSENT = 0,
+	USER_IN_SCENE,
+	USER_ACTIVE
+};
+
+UENUM(BlueprintType)
+enum class EGestureType : uint8
+{
+	WAVING = 0,
+	SWIPE_LEFT,
+	SWIPE_RIGHT,
+	SWIPE_UP,
+	SWIPE_DOWN,
+	PUSH
+};
+
+USTRUCT(BlueprintType)
+struct FNuitrackUserGesture
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 UserID;
+	
+	UPROPERTY(BlueprintReadOnly)
+	EUserStateType State;
+
+	UPROPERTY(BlueprintReadOnly)
+	TMap<EGestureType, float> GestureProgress;
+};
+
+
 /**
  * 
  */
@@ -80,26 +116,28 @@ class NUITRACKPLUGIN_API UNuitrackIO : public UObject
 	GENERATED_BODY()
 public:
 
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUserGesture, int32, UserID, EGestureType, GestureType);
+
 	UNuitrackIO();
 	UNuitrackIO(const FObjectInitializer& ObjectInitializer);
 	virtual ~UNuitrackIO();
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config", meta = (UIMin="0", UIMax="6"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (UIMin="0", UIMax="6"))
 	int32 NumBodiesToTrack;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Nuitrack | Config")
+	UPROPERTY(BlueprintReadWrite)
 	int32 DeviceIndex;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FString ActivationKey;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool bUseSkeletonTracking;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool bUseHandTracking;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | Config")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	bool bUseGestureRecognizer;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuitrack | IO")
@@ -142,11 +180,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | Hands")
 	const TArray<FNuitrackHandPair>& GetHandPairs() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Nuitrack | Gesture")
+	const TArray<FNuitrackUserGesture>& GetGestures() const;
+
 	/*
 	 * Nuitrack Bone represents pair of joints. So you can trace joints' hierarchy.
 	*/ 
 	UFUNCTION(BlueprintCallable, Category = "Nuitrack | Skeleton")
 	static const TArray<FNuitrackBone>& GetNuitrackBones() { return Bones; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Nuitrack | Gesture")
+	FOnUserGesture OnUserGesture;
+
 
 	// Interface for thread
 	void UpdateAsync();
@@ -158,6 +203,7 @@ public:
 	void OnDepthUpdate(tdv::nuitrack::DepthFrame::Ptr DepthPtr);
 	void OnUserUpdate(tdv::nuitrack::UserFrame::Ptr UserPtr);
 	void OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr GesturePtr);
+	void OnNewGesture(tdv::nuitrack::GestureData::Ptr GesturePtr);
 
 	// Interface for Editor Module
 	TArray<TSharedPtr<FString>> DeviceList;
@@ -184,6 +230,8 @@ private:
 
 	int32 NumPairOfHands;
 	TArray<FNuitrackHandPair> NuiHandPairs;
+
+	TArray<FNuitrackUserGesture> NuiGestures;
 
 	TArray<tdv::nuitrack::device::NuitrackDevice::Ptr> NuiDevices;
 

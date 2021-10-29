@@ -93,8 +93,7 @@ bool UNuitrackIO::Start()
 		UE_LOG(NuitrackIOLog, Warning, TEXT("No Device is selected."));
 		return false;
 	}
-
-
+	
 	try
 	{
 
@@ -168,6 +167,9 @@ bool UNuitrackIO::Start()
 			uint64_t Handler = Tracker->connectOnUpdate(
 				std::bind(&UNuitrackIO::OnGestureUpdate, this, std::placeholders::_1)
 			);
+			uint64_t Handler0 = Tracker->connectOnNewGestures(
+				std::bind(&UNuitrackIO::OnNewGesture, this, std::placeholders::_1)
+			);
 
 			Modules[ModuleType::GESTURE_RECOGNIZER] = Tracker;
 			ModuleCallbackHandlers[ModuleType::GESTURE_RECOGNIZER] = Handler;
@@ -189,7 +191,6 @@ bool UNuitrackIO::Start()
 	return true;
 }
 
-
 bool UNuitrackIO::Stop()
 {
 	
@@ -201,42 +202,42 @@ bool UNuitrackIO::Stop()
 
 	try
 	{
-		if (Modules.at(ModuleType::SKELETON_TRACKER))
+		if (Modules[ModuleType::SKELETON_TRACKER])
 		{
 			std::static_pointer_cast<SkeletonTracker>(Modules[ModuleType::SKELETON_TRACKER])->disconnectOnUpdate(
 				ModuleCallbackHandlers[ModuleType::SKELETON_TRACKER]
 			);
 		}
 		
-		if (Modules.at(ModuleType::HAND_TRACKER))
+		if (Modules[ModuleType::HAND_TRACKER])
 		{
 			std::static_pointer_cast<HandTracker>(Modules[ModuleType::HAND_TRACKER])->disconnectOnUpdate(
 				ModuleCallbackHandlers[ModuleType::HAND_TRACKER]
 			);
 		}
 
-		if (Modules.at(ModuleType::GESTURE_RECOGNIZER))
+		if (Modules[ModuleType::GESTURE_RECOGNIZER])
 		{
 			std::static_pointer_cast<GestureRecognizer>(Modules[ModuleType::GESTURE_RECOGNIZER])->disconnectOnUpdate(
 				ModuleCallbackHandlers[ModuleType::GESTURE_RECOGNIZER]
 			);
 		}
 		
-		if (Modules.at(ModuleType::COLOR_SENSOR))
+		if (Modules[ModuleType::COLOR_SENSOR])
 		{
 			std::static_pointer_cast<ColorSensor>(Modules[ModuleType::COLOR_SENSOR])->disconnectOnNewFrame(
 				ModuleCallbackHandlers[ModuleType::COLOR_SENSOR]
 			);
 		}
 
-		if (Modules.at(ModuleType::DEPTH_SENSOR))
+		if (Modules[ModuleType::DEPTH_SENSOR])
 		{
 			std::static_pointer_cast<DepthSensor>(Modules[ModuleType::DEPTH_SENSOR])->disconnectOnNewFrame(
 				ModuleCallbackHandlers[ModuleType::DEPTH_SENSOR]
 			);
 		}
 
-		if (Modules.at(ModuleType::USER_TRACKER))
+		if (Modules[ModuleType::USER_TRACKER])
 		{
 			std::static_pointer_cast<UserTracker>(Modules[ModuleType::USER_TRACKER])->disconnectOnUpdate(
 				ModuleCallbackHandlers[ModuleType::USER_TRACKER]
@@ -320,6 +321,19 @@ const TArray<FNuitrackHandPair>& UNuitrackIO::GetHandPairs() const
 	}
 }
 
+const TArray<FNuitrackUserGesture>& UNuitrackIO::GetGestures() const
+{
+	if (bOpen)
+	{
+		FScopeLock Lock(Thread->GetCriticalSection());
+		return NuiGestures;
+	}
+	else
+	{
+		return NuiGestures;
+	}
+}
+
 void UNuitrackIO::UpdateAsync()
 {
 	try
@@ -396,7 +410,7 @@ void UNuitrackIO::OnHandUpdate(HandTrackerData::Ptr HandPtr)
 			HandPair.Right.Pressure = User.rightHand->pressure;
 			HandPair.Right.Position = FVector(User.rightHand->zReal, User.rightHand->xReal, User.rightHand->yReal);
 
-			NuiHandPairs.Push(HandPair);
+			NuiHandPairs.Push(MoveTemp(HandPair));
 		}
 		
 	}
@@ -546,17 +560,35 @@ void UNuitrackIO::OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr Gest
 {
 	if (!GesturePtr) return;
 
+	FScopeLock Lock(Thread->GetCriticalSection());
+	NuiGestures.Reset(GesturePtr->getUserGesturesStates().size());
+
+	
 	for (auto& State : GesturePtr->getUserGesturesStates())
 	{
-		State.userId;
-		State.state;
+		FNuitrackUserGesture UserGesture;
+		UserGesture.State = static_cast<EUserStateType>(State.state);
+		UserGesture.UserID = State.userId;
 		for (auto& Gesture : State.gestures)
 		{
-			Gesture.type;
-			Gesture.progress;
+			UserGesture.GestureProgress.Emplace(
+				static_cast<EGestureType>(Gesture.type), Gesture.progress
+			);
 		}
+
+		NuiGestures.Push(MoveTemp(UserGesture));
 	}
 
+}
+
+void UNuitrackIO::OnNewGesture(tdv::nuitrack::GestureData::Ptr GesturePtr)
+{
+	if (!GesturePtr) return;
+
+	for (auto& Gesture : GesturePtr->getGestures())
+	{
+		OnUserGesture.Broadcast(Gesture.userId, static_cast<EGestureType>(Gesture.type));
+	}
 }
 
 FTransform UNuitrackIO::JointToTransform(const Joint& Joint)
