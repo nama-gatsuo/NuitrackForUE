@@ -35,6 +35,10 @@ struct FNuitrackHandPair
 {
 	GENERATED_BODY()
 public:
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 UserID;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FNuitrackHand Left;
 

@@ -402,6 +402,8 @@ void UNuitrackIO::OnHandUpdate(HandTrackerData::Ptr HandPtr)
 		{
 			FNuitrackHandPair HandPair;
 
+			HandPair.UserID = User.userId;
+
 			HandPair.Left.IsClick = User.leftHand->click;
 			HandPair.Left.Pressure = User.leftHand->pressure;
 			HandPair.Left.Position = FVector(User.leftHand->zReal, User.leftHand->xReal, User.leftHand->yReal);
