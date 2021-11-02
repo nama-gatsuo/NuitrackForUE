@@ -120,7 +120,9 @@ class NUITRACKPLUGIN_API UNuitrackIO : public UObject
 	GENERATED_BODY()
 public:
 
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUserGesture, int32, UserID, ENuitrackGestureType, GestureType);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUserGestureInit, int32, UserID, ENuitrackGestureType, GestureType);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnUserGestureUpdate, int32, UserID, ENuitrackGestureType, GestureType, float, Progress);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUserGestureComplete, int32, UserID, ENuitrackGestureType, GestureType);
 
 	UNuitrackIO();
 	UNuitrackIO(const FObjectInitializer& ObjectInitializer);
@@ -194,7 +196,13 @@ public:
 	static const TArray<FNuitrackBone>& GetNuitrackBones() { return Bones; }
 
 	UPROPERTY(BlueprintAssignable, Category = "Nuitrack | Gesture")
-	FOnUserGesture OnUserGesture;
+	FOnUserGestureInit OnUserGestureInit;
+
+	UPROPERTY(BlueprintAssignable, Category = "Nuitrack | Gesture")
+	FOnUserGestureUpdate OnUserGestureUpdate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Nuitrack | Gesture")
+	FOnUserGestureComplete OnUserGestureComplete;
 
 	// Interface for thread
 	void UpdateAsync();

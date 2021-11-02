@@ -571,11 +571,24 @@ void UNuitrackIO::OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr Gest
 		FNuitrackUserGesture UserGesture;
 		UserGesture.State = static_cast<ENuitrackUserStateType>(State.state);
 		UserGesture.UserID = State.userId;
+
 		for (auto& Gesture : State.gestures)
 		{
-			UserGesture.GestureProgress.Emplace(
-				static_cast<ENuitrackGestureType>(Gesture.type), Gesture.progress
-			);
+			ENuitrackGestureType GestureType = static_cast<ENuitrackGestureType>(Gesture.type);
+
+			UserGesture.GestureProgress.Emplace(GestureType, Gesture.progress);
+
+			// Emit events
+			if (Gesture.progress != 0)
+			{
+				OnUserGestureUpdate.Broadcast(State.userId, GestureType, Gesture.progress);
+
+				if (Gesture.progress != 100)
+				{
+					OnUserGestureComplete.Broadcast(State.userId, GestureType);
+				}
+			}
+
 		}
 
 		NuiGestures.Push(MoveTemp(UserGesture));
@@ -589,7 +602,7 @@ void UNuitrackIO::OnNewGesture(tdv::nuitrack::GestureData::Ptr GesturePtr)
 
 	for (auto& Gesture : GesturePtr->getGestures())
 	{
-		OnUserGesture.Broadcast(Gesture.userId, static_cast<ENuitrackGestureType>(Gesture.type));
+		OnUserGestureInit.Broadcast(Gesture.userId, static_cast<ENuitrackGestureType>(Gesture.type));
 	}
 }
 
