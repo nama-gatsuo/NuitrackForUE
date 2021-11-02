@@ -583,7 +583,7 @@ void UNuitrackIO::OnGestureUpdate(tdv::nuitrack::UserGesturesStateData::Ptr Gest
 			{
 				OnUserGestureUpdate.Broadcast(State.userId, GestureType, Gesture.progress);
 
-				if (Gesture.progress != 100)
+				if (Gesture.progress == 100)
 				{
 					OnUserGestureComplete.Broadcast(State.userId, GestureType);
 				}
