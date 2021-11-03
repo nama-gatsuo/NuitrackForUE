@@ -4,6 +4,8 @@
 
 Unreal Engine plugin to bridge [Nuitrack](https://nuitrack.com/). Nuitrack is a middleware to provide 3d skeleton tracking solution using a depth sensor. It has many PROs: AI-based, relatively fast and stable, coverage of depth sensor brands. Nuitrack has [an official plugin](https://github.com/3DiVi/nuitrack-sdk/tree/master/UnrealEngine) for Unreal Engine which still only provides native C++ interface. This plugin aims to encapsulate Nuitrack's C++ functions and align with Unreal Engine manner. 
 
+[Sample project link](https://drive.google.com/file/d/1F7CgQNtTCMdVzrh7OaC4oqd2wez-hbw5/view?usp=sharing)
+
 ## Prerequisites
 
 * [Nuitrack](https://nuitrack.com/) is installed.
