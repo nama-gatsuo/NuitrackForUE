@@ -671,7 +671,7 @@ FTransform UNuitrackIO::JointToTransform(const Joint& Joint)
 		Joint.type == JOINT_RIGHT_FOOT
 		)
 	{
-		Rotation = FQuat(RawRotation.Y, RawRotation.Z, -RawRotation.X, RawRotation.W);
+		Rotation = FQuat(-RawRotation.Y, RawRotation.Z, -RawRotation.X, RawRotation.W);
 	}
 	else
 	{
